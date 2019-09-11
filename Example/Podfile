@@ -1,0 +1,11 @@
+use_frameworks!
+
+target 'AppBus_Example' do
+  pod 'AppBus', :path => '../'
+
+  target 'AppBus_Tests' do
+    inherit! :search_paths
+
+    
+  end
+end
