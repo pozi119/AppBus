@@ -6,11 +6,12 @@
 //
 
 import Foundation
-import UIKit
 
 #if os(iOS) || os(tvOS)
+    import UIKit
     typealias APPViewController = UIViewController
 #else
+    import AppKit
     typealias APPViewController = NSViewController
 #endif
 
@@ -40,8 +41,13 @@ open class Page {
                 if storyboard == nil {
                     _viewController = APPViewController(nibName: name!, bundle: bundle)
                 } else {
-                    let sb = UIStoryboard(name: name!, bundle: bundle)
-                    _viewController = sb.instantiateViewController(withIdentifier: name!)
+                    #if os(iOS) || os(tvOS)
+                        let sb = UIStoryboard(name: name!, bundle: bundle)
+                        _viewController = sb.instantiateViewController(withIdentifier: name!)
+                    #else
+                        let sb = NSStoryboard(name: name!, bundle: bundle)
+                        _viewController = sb.instantiateController(withIdentifier: name!) as? APPViewController
+                    #endif
                 }
             }
             if _viewController != nil { _viewController!.setValuesForKeys(parameters) }
@@ -64,55 +70,58 @@ open class Page {
         self.parameters = parameters
     }
 
-    func show() -> Bool {
-        guard let topMostViewController = APPViewController.topMost else { return false }
+    #if os(iOS) || os(tvOS)
 
-        switch method {
-        case .push:
-            guard let vc = viewController, let navigationController = topMostViewController.navigationController else { return false }
-            if willShow != nil { willShow!(vc, navigationController) }
-            navigationController.pushViewController(vc, animated: true)
+        func show() -> Bool {
+            guard let topMostViewController = APPViewController.topMost else { return false }
 
-        case .present:
-            guard let vc = viewController else { return false }
-            if willShow != nil { willShow!(vc, topMostViewController) }
-            topMostViewController.present(vc, animated: true, completion: completion)
+            switch method {
+            case .push:
+                guard let vc = viewController, let navigationController = topMostViewController.navigationController else { return false }
+                if willShow != nil { willShow!(vc, navigationController) }
+                navigationController.pushViewController(vc, animated: true)
 
-        case .pop:
-            guard let navigationController = topMostViewController.navigationController else { return false }
-            if let vc = viewController {
-                let filtered = navigationController.viewControllers.filter { $0.isKind(of: vc.classForCoder) }
-                if let targetController = filtered.first {
-                    targetController.setValuesForKeys(parameters)
-                    navigationController.popToViewController(targetController, animated: true)
-                    return true
-                }
-            }
-            navigationController.popViewController(animated: true)
+            case .present:
+                guard let vc = viewController else { return false }
+                if willShow != nil { willShow!(vc, topMostViewController) }
+                topMostViewController.present(vc, animated: true, completion: completion)
 
-        case .dismiss:
-            if let vc = viewController {
-                var count = 0
-                var targetController: APPViewController?
-                var controller: APPViewController? = topMostViewController
-                while controller != nil, targetController != nil {
-                    if controller!.isKind(of: vc.classForCoder) {
-                        targetController = controller
-                    } else {
-                        controller = controller!.presentedViewController
-                        count += 1
+            case .pop:
+                guard let navigationController = topMostViewController.navigationController else { return false }
+                if let vc = viewController {
+                    let filtered = navigationController.viewControllers.filter { $0.isKind(of: vc.classForCoder) }
+                    if let targetController = filtered.first {
+                        targetController.setValuesForKeys(parameters)
+                        navigationController.popToViewController(targetController, animated: true)
+                        return true
                     }
                 }
-                if targetController != nil {
-                    for _ in 0 ..< count - 1 {
-                        topMostViewController.dismiss(animated: false, completion: nil)
+                navigationController.popViewController(animated: true)
+
+            case .dismiss:
+                if let vc = viewController {
+                    var count = 0
+                    var targetController: APPViewController?
+                    var controller: APPViewController? = topMostViewController
+                    while controller != nil, targetController != nil {
+                        if controller!.isKind(of: vc.classForCoder) {
+                            targetController = controller
+                        } else {
+                            controller = controller!.presentedViewController
+                            count += 1
+                        }
+                    }
+                    if targetController != nil {
+                        for _ in 0 ..< count - 1 {
+                            topMostViewController.dismiss(animated: false, completion: nil)
+                        }
                     }
                 }
+                topMostViewController.dismiss(animated: true, completion: completion)
             }
-            topMostViewController.dismiss(animated: true, completion: completion)
+            return true
         }
-        return true
-    }
+    #endif
 }
 
 /// URL Router
@@ -156,7 +165,11 @@ extension Router {
             let item = shared.routers[parameters.path]
             switch item {
             case let item as Page:
-                return item.show()
+                #if os(iOS) || os(watchOS)
+                    return item.show()
+                #else
+                    return false
+                #endif
             case let item as Handler:
                 return item(parameters.path, parameters.parameters)
             default: break
