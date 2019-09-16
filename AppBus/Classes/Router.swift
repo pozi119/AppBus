@@ -71,7 +71,6 @@ open class Page {
     }
 
     #if os(iOS) || os(tvOS)
-
         func show() -> Bool {
             guard let topMostViewController = APPViewController.topMost else { return false }
 
@@ -168,7 +167,7 @@ extension Router {
                 #if os(iOS) || os(watchOS)
                     return item.show()
                 #else
-                    return false
+                    break
                 #endif
             case let item as Handler:
                 return item(parameters.path, parameters.parameters)
