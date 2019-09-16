@@ -140,31 +140,29 @@ extension Service {
 extension Service {
     /// open url
     fileprivate func open(_ url: URL) -> Response {
-        if let request = url.serviceRequest {
-            return execute(request)
+        guard let request = url.serviceRequest else {
+            return Response(nil, data: nil, error: ServiceError.invalid)
         }
-        return Response(nil, data: nil, error: ServiceError.invalid)
+        return execute(request)
     }
 
     /// open url
     fileprivate func open(_ urlString: String) -> Response {
-        let url = URL(string: urlString)
-        guard url != nil else {
+        guard let url = URL(string: urlString) else {
             return Response(nil, data: nil, error: ServiceError.invalid)
         }
-        return open(url!)
+        return open(url)
     }
 
     /// execute request
     fileprivate func execute(_ request: Request) -> Response {
-        let provider = providers[request.provider]
-        guard provider != nil else {
+        guard let provider = providers[request.provider] else {
             return Response(request, data: nil, error: ServiceError.missProvider)
         }
-        guard provider!.actions.contains(request.action) else {
+        guard provider.actions.contains(request.action) else {
             return Response(request, data: nil, error: ServiceError.missAction)
         }
-        return provider!.execute(request)
+        return provider.execute(request)
     }
 
     /// cancel request
@@ -224,31 +222,20 @@ extension Service {
     }
 
     /// open url
-    ///
-    /// - Parameters:
-    ///   - url: url as follows
-    ///     - `app://provider/action/sub1path/sub2path?key1=val1&key2=val2 ...`,
-    ///     - `app://www.xxx.com/provider/action/sub1path/sub2path?key1=val1&key2=val2 ...`,
-    ///     - `app://192.168.11.2/provider/action/sub1path/sub2path?key1=val1&key2=val2 ...`
-    ///   - completion: handler
-    /// - Returns: success or not
     @discardableResult
     class func open(_ url: URL) -> Response {
         return shared.open(url)
     }
 
     /// open url
-    ///
-    /// - Parameters:
-    ///   - url: url as follows
-    ///     - `app://provider/action/sub1path/sub2path?key1=val1&key2=val2 ...`,
-    ///     - `app://www.xxx.com/provider/action/sub1path/sub2path?key1=val1&key2=val2 ...`,
-    ///     - `app://192.168.11.2/provider/action/sub1path/sub2path?key1=val1&key2=val2 ...`
-    ///   - completion: handler
-    /// - Returns: success or not
     @discardableResult
     class func open(_ urlString: String) -> Response {
         return shared.open(urlString)
+    }
+
+    /// execute request
+    class func execute(_ request: Request) -> Response {
+        return shared.execute(request)
     }
 
     /// execute request

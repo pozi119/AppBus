@@ -19,11 +19,11 @@ fileprivate class URLParser {
         var _schemes: [String] = ["http", "https"]
 
         let array = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]]
-        guard array != nil else {
+        guard let appschemes = array else {
             return _schemes
         }
 
-        for dic in array! {
+        for dic in appschemes {
             let sub = dic["CFBundleURLSchemes"] as? [String] ?? []
             _schemes.append(contentsOf: sub)
         }
@@ -34,41 +34,35 @@ fileprivate class URLParser {
     func isHost(_ host: String) -> Bool {
         return host.range(of: hostEx, options: .regularExpression) != nil
     }
+
+    func parse(_ url: URL) -> (hostAndPaths: [String], parameters: [String: String]) {
+        let nilValue: (hostAndPaths: [String], parameters: [String: String]) = ([], [:])
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: true) else { return nilValue }
+        guard components.scheme != nil else { return nilValue }
+        guard URLParser.shared.schemes.contains(components.scheme!.lowercased()) else { return nilValue }
+
+        var array = components.path.split(separator: "/").map { String($0) }
+        if let host = components.host, URLParser.shared.isHost(host) { array.insert(host, at: 0) }
+
+        var parameters: [String: String] = [:]
+        components.queryItems?.forEach { parameters[$0.name] = $0.value }
+
+        return (array, parameters)
+    }
 }
 
 extension URL {
     /// parse url to (path, [key : value])
     var routerParameters: (path: String, parameters: [String: String])? {
-        let components = URLComponents(url: self, resolvingAgainstBaseURL: true)
-        guard components != nil else { return nil }
-        guard components!.scheme != nil else { return nil }
-        guard URLParser.shared.schemes.contains(components!.scheme!.lowercased()) else { return nil }
-
-        var array = components!.path.split(separator: "/").map { String($0) }
-        let host = components!.host
-        if host != nil && URLParser.shared.isHost(host!) { array.insert(host!, at: 0) }
-
+        let (array, parameters) = URLParser.shared.parse(self)
         guard array.count > 0 else { return nil }
-
         let path = array.joined(separator: "/")
-
-        var parameters: [String: String] = [:]
-        components?.queryItems?.forEach { parameters[$0.name] = $0.value }
-
         return (path, parameters)
     }
 
     /// parse url to Service Request
     var serviceRequest: Request? {
-        let components = URLComponents(url: self, resolvingAgainstBaseURL: true)
-        guard components != nil else { return nil }
-        guard components!.scheme != nil else { return nil }
-        guard URLParser.shared.schemes.contains(components!.scheme!.lowercased()) else { return nil }
-
-        var array = components!.path.split(separator: "/").map { String($0) }
-        let host = components!.host
-        if host != nil && URLParser.shared.isHost(host!) { array.insert(host!, at: 0) }
-
+        var (array, parameters) = URLParser.shared.parse(self)
         guard array.count >= 2 else { return nil }
 
         let request: Request = Request()
@@ -76,9 +70,6 @@ extension URL {
         request.action = array[1]
         array.removeFirst(2)
         request.path = array.joined(separator: "/")
-
-        var parameters: [String: String] = [:]
-        components?.queryItems?.forEach { parameters[$0.name] = $0.value }
         request.parameters = parameters
 
         return request

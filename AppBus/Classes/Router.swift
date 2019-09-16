@@ -8,29 +8,37 @@
 import Foundation
 import UIKit
 
+#if os(iOS) || os(tvOS)
+    typealias APPViewController = UIViewController
+#else
+    typealias APPViewController = NSViewController
+#endif
+
 open class Page {
     enum Method {
         case push, present, pop, dismiss
     }
 
-    var type: UIViewController.Type?
+    var type: APPViewController.Type?
     var name: String?
     var storyboard: String?
     var bundle: Bundle?
     var parameters: [String: Any] = [:]
     var method: Method = .push
-    var willShow: ((UIViewController) -> UIViewController)?
+
+    /// (willShowController, topMostController or topMostController.navigationController)
+    var willShow: ((APPViewController, APPViewController?) -> Void)?
     var completion: (() -> Void)?
 
-    private var _viewController: UIViewController?
-    var viewController: UIViewController? {
+    private var _viewController: APPViewController?
+    var viewController: APPViewController? {
         get {
             if _viewController != nil { return _viewController }
             if type != nil {
                 _viewController = type!.init()
             } else if name != nil {
                 if storyboard == nil {
-                    _viewController = UIViewController(nibName: name!, bundle: bundle)
+                    _viewController = APPViewController(nibName: name!, bundle: bundle)
                 } else {
                     let sb = UIStoryboard(name: name!, bundle: bundle)
                     _viewController = sb.instantiateViewController(withIdentifier: name!)
@@ -44,7 +52,7 @@ open class Page {
         }
     }
 
-    init(_ type: UIViewController.Type, parameters: [String: Any] = [:]) {
+    init(_ type: APPViewController.Type, parameters: [String: Any] = [:]) {
         self.type = type
         self.parameters = parameters
     }
@@ -57,17 +65,17 @@ open class Page {
     }
 
     func show() -> Bool {
-        guard let topMostViewController = UIViewController.topMost else { return false }
+        guard let topMostViewController = APPViewController.topMost else { return false }
 
         switch method {
         case .push:
-            guard var vc = viewController, let navigationController = topMostViewController.navigationController else { return false }
-            if willShow != nil { vc = willShow!(vc) }
+            guard let vc = viewController, let navigationController = topMostViewController.navigationController else { return false }
+            if willShow != nil { willShow!(vc, navigationController) }
             navigationController.pushViewController(vc, animated: true)
 
         case .present:
-            guard var vc = viewController else { return false }
-            if willShow != nil { vc = willShow!(vc) }
+            guard let vc = viewController else { return false }
+            if willShow != nil { willShow!(vc, topMostViewController) }
             topMostViewController.present(vc, animated: true, completion: completion)
 
         case .pop:
@@ -85,8 +93,8 @@ open class Page {
         case .dismiss:
             if let vc = viewController {
                 var count = 0
-                var targetController: UIViewController?
-                var controller: UIViewController? = topMostViewController
+                var targetController: APPViewController?
+                var controller: APPViewController? = topMostViewController
                 while controller != nil, targetController != nil {
                     if controller!.isKind(of: vc.classForCoder) {
                         targetController = controller
@@ -171,9 +179,7 @@ extension Router {
     /// - Returns: success or not
     @discardableResult
     public class func open(_ url: String) -> Bool {
-        if let _url = URL(string: url) {
-            return open(_url)
-        }
-        return false
+        guard let _url = URL(string: url) else { return false }
+        return open(_url)
     }
 }
