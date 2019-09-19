@@ -1,0 +1,16 @@
+PODS:
+  - AppBus (0.1.0)
+
+DEPENDENCIES:
+  - AppBus (from `../`)
+
+EXTERNAL SOURCES:
+  AppBus:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  AppBus: b00f1559df22da79be869a331c8da8087fe953cc
+
+PODFILE CHECKSUM: 0512cd42972bb945a10ff14a620c1b5ece61e85e
+
+COCOAPODS: 1.7.5
